@@ -13,6 +13,8 @@ var io = require('socket.io')(app)
 var fs = require('fs')
 var path = require('path')
 
+
+
 app.listen(3001);
 
 function handler (request, response) {
@@ -81,10 +83,29 @@ function handler (request, response) {
   });*/
 }
 
-io.on('connection', function (socket) {
+
+var Rx = require("rx")
+
+
+let connection$ = Rx.Observable.fromEvent( io.sockets, 'connection' )
+connection$.subscribe(socket=>console.log("connection to socket"))
+
+let someEvent$ = connection$.flatMap(socket=>Rx.Observable.fromEvent(socket, 'someEvent'))
+someEvent$.subscribe(e=>console.log("someEvent event",e))
+
+let socketIn$ = connection$ 
+//connection$.subscribe(e=>socket$.onNext(e))
+
+socketOut$ = new Rx.Subject()
+
+connection$.subscribe(socket=>socket.emit("bla"))
+
+
+//standard socket.io
+/*io.on('connection', function (socket) {
   console.log("connection")
   socket.emit('news', { hello: 'world' });
   socket.on('someEvent', function (data) {
     console.log(data);
   });
-});
+});*/
