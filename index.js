@@ -1,11 +1,7 @@
-
-
-
 /*var CronJob = require('cron').CronJob
 new CronJob('* * * * * *', function() {
   console.log('You will see this message every second')
 }, null, true, 'America/Los_Angeles')*/
-
 
 
 var app = require('http').createServer(handler)
@@ -21,7 +17,6 @@ function handler (request, response) {
   var filePath = './' + request.url
   //console.log("filePath0",filePath)
   if (filePath == './/'){
-    console.log("FART")
     filePath = '../../index.html'
   }
 
@@ -96,7 +91,7 @@ someEvent$.subscribe(e=>console.log("someEvent event",e))
 let socketIn$ = connection$ 
 //connection$.subscribe(e=>socket$.onNext(e))
 
-socketOut$ = new Rx.Subject()
+let socketOut$ = new Rx.Subject()
 
 connection$.subscribe(socket=>socket.emit("bla"))
 
