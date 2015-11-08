@@ -37,3 +37,23 @@ export function get(options={responseType:"text"}){
   xmlhttp.send()
   return obs
 }
+
+
+//wrapper around CronJob
+//TODO : how to deal with start/stop
+const CronJob = require('cron').CronJob
+
+export function cronJob(cronTime){
+  let obs = new Rx.Subject()
+
+  function handleNext(e){
+    obs.onNext()
+  }
+  function handleComplete(e){   
+    obs.onCompleted()
+  }
+
+  new CronJob(cronTime, handleNext, handleComplete, true)
+
+  return obs
+}

@@ -1,7 +1,4 @@
-/*var CronJob = require('cron').CronJob
-new CronJob('* * * * * *', function() {
-  console.log('You will see this message every second')
-}, null, true, 'America/Los_Angeles')*/
+
 
 var Rx = require("rx")
 var most = require("most")
@@ -11,12 +8,13 @@ var io = require('socket.io')(app)
 var fs = require('fs')
 var path = require('path')
 
-
+let just = Rx.Observable.just
 import assign from 'fast.js/object/assign'//faster object.assign
 
-import {get} from './utils'
+import {get,cronJob} from './utils'
 
 const fromEvent = most.fromEvent
+
 
 //minimal web server
 app.listen(3001);
@@ -88,58 +86,19 @@ function handler (request, response) {
 
 
 //////////////
-function Subject( initial = null ) {
-  let _add
-  let _end
-  let _error
 
-  const stream = most.create( ( add, end, error ) => {
-    _add = add
-    _end = end
-    _error = error
-    return _error
-  });
-
-  stream.push = v => setImmediate( () => {
-    return typeof _add === `function` ? _add( v ) : void 0;
-  });
-
-  stream.end = () => setImmediate( () => {
-    return typeof _end === `function` ? _end() : void 0;
-  });
-
-  stream.error = e => setImmediate( () => {
-    return typeof _error === `function` ? _error( e ) : void 0;
-  });
-
-  stream.plug = value$ => {
-    let subject = Subject();
-    value$.forEach( subject.push );
-    subject.forEach( stream.push );
-    return subject.end;
-  };
-
-  if ( initial !== null ) {
-    stream.push( initial )
-  }
-
-  return stream
-}
-
-
-function fromNodeCallBack(fn){
-
-}
-
+/*var CronJob = require('cron').CronJob
+new CronJob('0 * * * * *', function() {
+  console.log('You will see this message every minute')
+}, null, true)*/
+cronJob('0 * * * * *')
+  .forEach(e=>console.log('You will see this message every minute'))
 
 
 let Datastore = require('tingodb')().Db
 
 let dbPath = './dbTest'
 let db = new Datastore(dbPath, {})
-
-// Fetch a collection to insert document into
-let collection = db.collection("node1SensorData")
 
 // Insert a single document
 /*collection.insert([{hello:'world_safe1'}
@@ -155,43 +114,56 @@ let collection = db.collection("node1SensorData")
 let inserted$ = insert([{foo:"bar"}])
   .subscribe(e=>console.log("inserted doc"))*/
 
-const nodes$ = just([
-  {id:0,name:"Weather station",uri:"http://192.168.1.20:3020"}
-  ,{id:1,name:"indoor station",uri:"http://192.168.1.21:3020"}
-])
 
 
-let data$ = Rx.Observable.interval(6000)//60000)
-  .flatMap(function(){
-    return get({
-      url:"http://192.168.1.20:3020"
-      ,responseType:"json"
-      ,crossDomain:true
-      ,credentials:false
+function fetchNodeData(node){
+  return Rx.Observable.interval(6000)//60000)
+    .flatMap(function(){
+      return get({
+        url:node.uri
+        ,responseType:"json"
+        ,crossDomain:true
+        ,credentials:false
+      })
     })
-  })
-  .retry(10)
-  .pluck("response")
-  .pluck("variables")
-  .shareReplay(1)
-
-
+    .retry(10)
+    .pluck("response")
+    .pluck("variables")
+    .shareReplay(1)
+}
 
 function formatData(data){
   const timestamp = Math.floor(new Date() / 1000)
   return assign({},data,{timestamp})
 }
 
-function logData(data){
+function addNodeData(nodeData,data){
+  return assign({},data,nodeData)
+}
+
+function logData(collection,data){
+  //console.log("logging",data)
   collection.insert(data,function(err,result){
-    console.log("saved data")//,data,err,result)
+    console.log("saved data",err,result)//,data,err,result)
   })
 }
 
-data$
-  //.do(e=>console.log("recieved",e))
-  .map(formatData)
-  .forEach(logData)
+const nodes = [
+  {id:0,name:"Weather station",uri:"http://192.168.1.20:3020"}
+  ,{id:1,name:"indoor station",uri:"http://192.168.1.21:3020"}
+]
+
+
+nodes
+  .forEach(function(node){
+    const nodeData   = {nodeId:node.id}
+    const collection = db.collection(`node${node.id}SensorData`)
+
+    fetchNodeData(node)
+      .map(addNodeData.bind(null,nodeData))
+      .map(formatData)
+      .forEach(logData.bind(null,collection))
+  })
 
 /*get({url:"http://192.168.1.20:3020",responseType:"json"})
   .forEach(e=>console.log("recieved",e))*/
@@ -205,7 +177,6 @@ someEvent$.forEach(e=>console.log("someEvent event",e))
 
 let socketIn$ = connection$ 
 //connection$.subscribe(e=>socket$.onNext(e))
-
 //let socketOut$ = new Rx.Subject()
 connection$.forEach(socket=>socket.emit("bla"))
 
