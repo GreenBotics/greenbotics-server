@@ -3,6 +3,8 @@ new CronJob('* * * * * *', function() {
   console.log('You will see this message every second')
 }, null, true, 'America/Los_Angeles')*/
 
+var Rx = require("rx")
+var most = require("most")
 
 var app = require('http').createServer(handler)
 var io = require('socket.io')(app)
@@ -10,7 +12,13 @@ var fs = require('fs')
 var path = require('path')
 
 
+import assign from 'fast.js/object/assign'//faster object.assign
 
+import {get} from './utils'
+
+const fromEvent = most.fromEvent
+
+//minimal web server
 app.listen(3001);
 
 function handler (request, response) {
@@ -79,28 +87,126 @@ function handler (request, response) {
 }
 
 
-var Rx = require("rx")
+//////////////
+function Subject( initial = null ) {
+  let _add
+  let _end
+  let _error
+
+  const stream = most.create( ( add, end, error ) => {
+    _add = add
+    _end = end
+    _error = error
+    return _error
+  });
+
+  stream.push = v => setImmediate( () => {
+    return typeof _add === `function` ? _add( v ) : void 0;
+  });
+
+  stream.end = () => setImmediate( () => {
+    return typeof _end === `function` ? _end() : void 0;
+  });
+
+  stream.error = e => setImmediate( () => {
+    return typeof _error === `function` ? _error( e ) : void 0;
+  });
+
+  stream.plug = value$ => {
+    let subject = Subject();
+    value$.forEach( subject.push );
+    subject.forEach( stream.push );
+    return subject.end;
+  };
+
+  if ( initial !== null ) {
+    stream.push( initial )
+  }
+
+  return stream
+}
 
 
-let connection$ = Rx.Observable.fromEvent( io.sockets, 'connection' )
-connection$.subscribe(socket=>console.log("connection to socket"))
+function fromNodeCallBack(fn){
 
-let someEvent$ = connection$.flatMap(socket=>Rx.Observable.fromEvent(socket, 'someEvent'))
-someEvent$.subscribe(e=>console.log("someEvent event",e))
+}
+
+
+
+let Datastore = require('tingodb')().Db
+
+let dbPath = './dbTest'
+let db = new Datastore(dbPath, {})
+
+// Fetch a collection to insert document into
+let collection = db.collection("node1SensorData")
+
+// Insert a single document
+/*collection.insert([{hello:'world_safe1'}
+  , {hello:'world_safe2'}], {w:1}, function(err, result) {
+
+  // Fetch the document
+  collection.findOne({hello:'world_safe2'}, function(err, item) {
+    console.log("found item",item.hello)
+  })
+})*/
+
+/*let insert = Rx.Observable.fromNodeCallback(collection.insert)
+let inserted$ = insert([{foo:"bar"}])
+  .subscribe(e=>console.log("inserted doc"))*/
+
+const nodes$ = just([
+  {id:0,name:"Weather station",uri:"http://192.168.1.20:3020"}
+  ,{id:1,name:"indoor station",uri:"http://192.168.1.21:3020"}
+])
+
+
+let data$ = Rx.Observable.interval(6000)//60000)
+  .flatMap(function(){
+    return get({
+      url:"http://192.168.1.20:3020"
+      ,responseType:"json"
+      ,crossDomain:true
+      ,credentials:false
+    })
+  })
+  .retry(10)
+  .pluck("response")
+  .pluck("variables")
+  .shareReplay(1)
+
+
+
+function formatData(data){
+  const timestamp = Math.floor(new Date() / 1000)
+  return assign({},data,{timestamp})
+}
+
+function logData(data){
+  collection.insert(data,function(err,result){
+    console.log("saved data")//,data,err,result)
+  })
+}
+
+data$
+  //.do(e=>console.log("recieved",e))
+  .map(formatData)
+  .forEach(logData)
+
+/*get({url:"http://192.168.1.20:3020",responseType:"json"})
+  .forEach(e=>console.log("recieved",e))*/
+
+//socket.io part 
+let connection$ = fromEvent(  'connection',io.sockets )
+connection$.forEach(socket=>console.log("connection to socket"))
+
+let someEvent$ = connection$.flatMap(socket=>fromEvent('someEvent',socket))
+someEvent$.forEach(e=>console.log("someEvent event",e))
 
 let socketIn$ = connection$ 
 //connection$.subscribe(e=>socket$.onNext(e))
 
-let socketOut$ = new Rx.Subject()
+//let socketOut$ = new Rx.Subject()
+connection$.forEach(socket=>socket.emit("bla"))
 
-connection$.subscribe(socket=>socket.emit("bla"))
 
-
-//standard socket.io
-/*io.on('connection', function (socket) {
-  console.log("connection")
-  socket.emit('news', { hello: 'world' });
-  socket.on('someEvent', function (data) {
-    console.log(data);
-  });
-});*/
