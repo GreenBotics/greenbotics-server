@@ -11,7 +11,7 @@ var path = require('path')
 let just = Rx.Observable.just
 import assign from 'fast.js/object/assign'//faster object.assign
 
-import {get,cronJob} from './utils'
+import {get,cronJob,makeTingoDbDriver} from './utils'
 
 const fromEvent = most.fromEvent
 
@@ -91,8 +91,8 @@ function handler (request, response) {
 new CronJob('0 * * * * *', function() {
   console.log('You will see this message every minute')
 }, null, true)*/
-cronJob('0 * * * * *')
-  .forEach(e=>console.log('You will see this message every minute'))
+const sensorJobTimer$ = cronJob('*/30 * * * * *')
+  .stream
 
 
 let Datastore = require('tingodb')().Db
@@ -115,17 +115,13 @@ let inserted$ = insert([{foo:"bar"}])
   .subscribe(e=>console.log("inserted doc"))*/
 
 
-
 function fetchNodeData(node){
-  return Rx.Observable.interval(6000)//60000)
-    .flatMap(function(){
-      return get({
-        url:node.uri
-        ,responseType:"json"
-        ,crossDomain:true
-        ,credentials:false
-      })
-    })
+  return get({
+      url:node.uri
+      ,responseType:"json"
+      ,crossDomain:true
+      ,credentials:false
+    })  
     .retry(10)
     .pluck("response")
     .pluck("variables")
@@ -153,21 +149,33 @@ const nodes = [
   ,{id:1,name:"indoor station",uri:"http://192.168.1.21:3020"}
 ]
 
+sensorJobTimer$
+  //.do(e=>console.log('You will see this message every minute'))
+  .forEach(function(){
+    nodes
+      .forEach(function(node){
+        const nodeData   = {nodeId:node.id}
+        const collection = db.collection(`node${node.id}SensorData`)
 
-nodes
-  .forEach(function(node){
-    const nodeData   = {nodeId:node.id}
-    const collection = db.collection(`node${node.id}SensorData`)
-
-    fetchNodeData(node)
-      .map(addNodeData.bind(null,nodeData))
-      .map(formatData)
-      .forEach(logData.bind(null,collection))
+        fetchNodeData(node)
+          .map(addNodeData.bind(null,nodeData))
+          .map(formatData)
+          .forEach(logData.bind(null,collection))
+      })
   })
 
 /*get({url:"http://192.168.1.20:3020",responseType:"json"})
   .forEach(e=>console.log("recieved",e))*/
+/////////////////
+let tingodbDriver = makeTingoDbDriver("dbTest")
 
+let output$ = sensorJobTimer$.map( e=>({collectionName:"foo", data:[{cata:"42"}]}) )
+let bla = tingodbDriver(output$)
+//bla.find("node1SensorData",{}).forEach(e=>console.log("found",e))
+bla.find("node1SensorData",{temperature: 21.75},{toArray:true})
+  .forEach(e=>console.log("found",e))
+
+/////////////////
 //socket.io part 
 let connection$ = fromEvent(  'connection',io.sockets )
 connection$.forEach(socket=>console.log("connection to socket"))
