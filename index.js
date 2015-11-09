@@ -9,23 +9,33 @@ let httpServer = makeHttpServer()
 //let sioServer  = makeSocketIoServer(httpServer)
 
 import makeSocketIODriver from './drivers/socketIODriver'
+import makeTingoDbDriver  from './drivers/tingoDBStorage'
 
-import {get,cronJob,makeTingoDbDriver} from './utils/utils'
+import {get,cronJob} from './utils/utils'
 
 
 function main(drivers) {
-  const {socketIO} = drivers
+  const {socketIO,db} = drivers
   
   //const actions = intent(drivers)
   //const state$  = model(undefined, actions, drivers)
 
   const sensorJobTimer$ = cronJob('*/30 * * * * *')
     .stream
+
+
   
   //return anything you want to output to drivers
   const incomingMessages$ = socketIO.get('someEvent')
-    incomingMessages$
-      .forEach(e=>console.log("incomingMessages",e))
+    .map(e=>JSON.parse(e))
+  
+  incomingMessages$
+    .forEach(e=>console.log("incomingMessages",e))
+  
+
+  const dbOutput$ = incomingMessages$
+    .map( e=>({collectionName:"foo", data:e}) )
+
 
   //outputs 
   const stream$ = incomingMessages$
@@ -41,6 +51,7 @@ function main(drivers) {
 
   return {
     socketIO: outgoingMessages$
+    ,db: dbOutput$
   }
 }
 
@@ -48,6 +59,7 @@ function main(drivers) {
 
 let drivers = {
   socketIO: makeSocketIODriver(httpServer)
+  , db      : makeTingoDbDriver("dbTest")
 }
 
 Cycle.run(main, drivers)
