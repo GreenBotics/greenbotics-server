@@ -1,3 +1,4 @@
+import Rx from 'rx'
 /////////////
 let Datastore = require('tingodb')().Db
 
