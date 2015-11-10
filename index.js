@@ -14,15 +14,28 @@ import makeHttpDriver     from './drivers/httpDriver'
 
 import {get,cronJob} from './utils/utils'
 import {formatData} from './utils/sensorUtils'
+import {combineLatestObj} from './utils/obsUtils'
 
 
+function baseData({socketIO, db}){
+  socketIO.get('initialData')
+    .forEach(e=>console.log("initialData request",e))
 
-function socketIOReplies(inputs$){
+  const nodes$ = socketIO.get('initialData')
+    .flatMap( e=>db.find("nodes",{},{toArray:true}) )
 
+    //.startWith([])
 
-  
+  nodes$
+    .forEach(e=>console.log("nodes",e))
+
+  const data$ = combineLatestObj({nodes$})
+
+  //data$
+  //  .filter(e=>e!==undefined)
+    //.forEach(e=>console.log("baseData",e.nodes[0]))
+  return nodes$
 }
-
 
 
 function main(drivers) {
@@ -31,7 +44,7 @@ function main(drivers) {
   //const actions = intent(drivers)
   //const state$  = model(undefined, actions, drivers)
 
-  const sensorJobTimer$ = cronJob('*/50 * * * * *')
+  const sensorJobTimer$ = cronJob('*/50 * 3 * * *')
     .stream
 
   //db
@@ -85,8 +98,8 @@ function main(drivers) {
   
   //return anything you want to output to drivers
 
-  const baseClientData$ = socketIO.get('initialData')
-    .forEach(e=>console.log("initialData",e))
+  /*const baseClientData$ = socketIO.get('initialData')
+    .forEach(e=>console.log("initialData",e))*/
 
 
   const incomingMessages$ = socketIO.get('someEvent')
@@ -104,21 +117,60 @@ function main(drivers) {
       return {collectionName:"node1SensorData", data:e}
     })
 
+
+  const nodes = [
+    { uid:"1b49763e-8aad-4c2b-8326-46b7548c232b"
+      ,name:"Weather station"
+      ,uri:"http://192.168.1.20:3020"
+      ,sensorFeeds:[
+         {feedId:0, type:"temperature"}
+        ,{feedId:1, type:"humidity" }
+        ,{feedId:2, type:"pressure" }
+        ,{feedId:3, type:"windSpd" }
+        ,{feedId:4, type:"windDir" }
+        ,{feedId:5, type:"rain" }
+        ,{feedId:6, type:"light" }
+        ,{feedId:7, type:"UV" }
+        ,{feedId:8, type:"IR" }
+      ]
+    }
+
+  ,{
+      uid:"e53b703b-84a2-40f1-8717-5fda64e588d0"
+      ,name:"indoor station"
+      ,uri:"http://192.168.1.21:3020"
+      ,sensorFeeds:[
+        {feedId:0, type:"temperature"}
+        ,{feedId:1, type:"humidity"}
+        ,{feedId:2, type:"pressure" }
+      ]
+    }
+  ]
+
   const dbOutput$ = Rx.Observable.merge(node0DbOut$,node1DbOut$)
-    //.map( e=>({collectionName:"foo", data:e}) )
-
-
+    /*Rx.Observable.just(nodes)
+    .map(function(e){
+      return {collectionName:"nodes",data:e}
+    })*/
+ 
   //outputs 
-  const stream$ = incomingMessages$
-    .map(e=>'ok sure')
 
-  const outgoingMessages$ = stream$.map( 
+
+  /*const outgoingMessages$ = Rx.Observable
+    .interval(500)
+    .map(function(e){
+      return {messageType:"foo",message:"bar"}
+    })*/
+
+  const outgoingMessages$ = baseData(drivers).map( 
     function(eventData){
       return {
-        messageType: 'someEvent',
+        messageType: 'initialData',
         message: JSON.stringify(eventData)
       }
     })
+    .merge(Rx.Observable.just({messageType:"foo",message:'bar'}))
+
 
   return {
     socketIO: outgoingMessages$
