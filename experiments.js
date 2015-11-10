@@ -83,13 +83,6 @@ sensorJobTimer$
 
 /*get({url:"http://192.168.1.20:3020",responseType:"json"})
   .forEach(e=>console.log("recieved",e))*/
-/////////////////
-let tingodbDriver = makeTingoDbDriver("dbTest")
 
-let output$ = sensorJobTimer$.map( e=>({collectionName:"foo", data:[{cata:"42"}]}) )
-let tingodb = tingodbDriver(output$)
-//tingodb.find("node1SensorData",{}).forEach(e=>console.log("found",e))
-tingodb.find("node1SensorData",{temperature: { $gt: 21.82 } },{toArray:true})
-  .forEach(e=>console.log("found",e))
 
 
