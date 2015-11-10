@@ -13,6 +13,16 @@ import makeTingoDbDriver  from './drivers/tingoDBStorage'
 import makeHttpDriver     from './drivers/httpDriver'
 
 import {get,cronJob} from './utils/utils'
+import {formatData} from './utils/sensorUtils'
+
+
+
+function socketIOReplies(inputs$){
+
+
+  
+}
+
 
 
 function main(drivers) {
@@ -30,44 +40,72 @@ function main(drivers) {
     .forEach(e=>console.log("found",e))*/
 
   //http requests
-  http
-    .filter(res$ => res$.request.name === 'fakename')
+  
+  let node0Data$ = http
+    .filter(res$ => res$.request.name === 'node0')
     .mergeAll()
-    .forEach(e=>console.log("request response",e))
-
-  http
-    .filter(res$ => res$.request.name === 'fakename2')
+    .pluck("response")
+    .pluck("variables")
+    .map(formatData)
+  
+  let node1Data$ = http
+    .filter(res$ => res$.request.name === 'node1')
     .mergeAll()
-    .forEach(e=>console.log("request response2",e))
+    .pluck("response")
+    .pluck("variables")
+    .map(formatData)
 
+  node0Data$.forEach(e=>console.log("node0Data recieved",e))
+  node1Data$.forEach(e=>console.log("node1Data recieved",e))
+
+
+  //outbound requests
+  let node0Reqs$ = sensorJobTimer$
+    .map(e=> ({
+          url: "http://192.168.1.20:3020"
+          , method: 'get'
+          , responseType:"json"
+          , name: 'node0'
+          , anyOtherDataYouWish: 'foo'
+        })
+    )
 
   let node1Reqs$ = sensorJobTimer$
     .map(e=> ({
-          url: "http://192.168.1.20:3020",
-          method: 'get',
-          name: 'fakename',
-          anyOtherDataYouWish: 'foo'
+          url: "http://192.168.1.21:3020"
+          , method: 'get'
+          , responseType:"json"
+          , name: 'node1'
+          , anyOtherDataYouWish: 'foo'
         })
     )
 
-  let node2Reqs$ = sensorJobTimer$
-    .map(e=> ({
-          url: "http://192.168.1.21:3020",
-          method: 'get',
-          name: 'fakename2',
-          anyOtherDataYouWish: 'foo'
-        })
-    )
-
-  let request$ = Rx.Observable.merge(node1Reqs$,node2Reqs$)
+  const requests$ = Rx.Observable.merge(node0Reqs$,node1Reqs$)
+    .retry(3)
   
   //return anything you want to output to drivers
+
+  const baseClientData$ = socketIO.get('initialData')
+    .forEach(e=>console.log("initialData",e))
+
+
   const incomingMessages$ = socketIO.get('someEvent')
     .map(e=>JSON.parse(e))
   
 
-  const dbOutput$ = incomingMessages$
-    .map( e=>({collectionName:"foo", data:e}) )
+  //incomingMessages$
+  const node0DbOut$ = node0Data$
+    .map(function(e){
+      return {collectionName:"node0SensorData", data:e}
+    })
+
+  const node1DbOut$ = node1Data$
+    .map(function(e){
+      return {collectionName:"node1SensorData", data:e}
+    })
+
+  const dbOutput$ = Rx.Observable.merge(node0DbOut$,node1DbOut$)
+    //.map( e=>({collectionName:"foo", data:e}) )
 
 
   //outputs 
@@ -85,7 +123,7 @@ function main(drivers) {
   return {
     socketIO: outgoingMessages$
     ,db: dbOutput$
-    ,http:request$
+    ,http:requests$
   }
 }
 

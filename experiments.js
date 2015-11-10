@@ -2,25 +2,6 @@ import Rx from 'rx'
 import most from 'most'
 
 const just = Rx.Observable.just
-import assign from 'fast.js/object/assign'//faster object.assign
-import {get,cronJob,makeTingoDbDriver} from './utils'
-
-
-//////////////
-
-/*var CronJob = require('cron').CronJob
-new CronJob('0 * * * * *', function() {
-  console.log('You will see this message every minute')
-}, null, true)*/
-const sensorJobTimer$ = cronJob('*/30 * * * * *')
-  .stream
-
-
-let Datastore = require('tingodb')().Db
-
-let dbPath = './dbTest'
-let db = new Datastore(dbPath, {})
-
 
 function fetchNodeData(node){
   return get({
@@ -36,34 +17,10 @@ function fetchNodeData(node){
     .shareReplay(1)
 }
 
-function formatData(data){
-  const timestamp = Math.floor(new Date() / 1000)
-  return assign({},data,{timestamp})
-}
-
-function addNodeData(nodeData,data){
-  return assign({},data,nodeData)
-}
-
-function logData(collection,data){
-  //console.log("logging",data)
-  collection.insert(data,function(err,result){
-    console.log("saved data",err,result)//,data,err,result)
-  })
-}
-
 const nodes = [
   {id:0,name:"Weather station",uri:"http://192.168.1.20:3020"}
   ,{id:1,name:"indoor station",uri:"http://192.168.1.21:3020"}
 ]
-
-/*let otherNodes = [
-  {id:"xxx",name:"Weather station",uri:"http://192.168.1.20:3020"}
-  ,{id:"xxx",name:"indoor station",uri:"http://192.168.1.21:3020"}
-]
-db.collection('nodes').insert( otherNodes,function(err, result) {
-
-})*/
 
 
 sensorJobTimer$
@@ -80,9 +37,4 @@ sensorJobTimer$
           .forEach(logData.bind(null,collection))
       })
   })
-
-/*get({url:"http://192.168.1.20:3020",responseType:"json"})
-  .forEach(e=>console.log("recieved",e))*/
-
-
 
