@@ -2,16 +2,17 @@ import Rx from 'rx'
 let XMLHttpRequest = require("xhr2").XMLHttpRequest
 
 
-
 export function createResponse$(options={responseType:"text",method:"get"}){
   let obs = new Rx.Subject()
 
   let xmlhttp = new XMLHttpRequest()
 
   function handleProgress(e){
-    if (e.lengthComputable) {
-      obs.onNext({progress: (e.loaded / e.total)}) 
-    }
+    [e]
+      .filter(e=>e.lengthComputable)
+      .forEach(function(e){
+        obs.onNext({progress: (e.loaded / e.total),total:e.total}) 
+      })  
   }
   function handleComplete(e){
     let response = xmlhttp.response
@@ -22,7 +23,7 @@ export function createResponse$(options={responseType:"text",method:"get"}){
 
   function handleError(e){
     console.log("error",xmlhttp.statusText)
-    e=>obs.onError(e)
+    obs.onError(e)
   }
 
   xmlhttp.addEventListener("progress", handleProgress)
@@ -57,19 +58,3 @@ export default function makeHttpDriver({eager = false} = {eager: false}){
   }
 
 }
-
-
-/*
-var request$ = Rx.Observable.just({
-  url: 'www.google.com',
-  method: 'get',
-  name: 'foobar-whatever-name-I-want',
-  anyOtherDataYouWish: 'asd'
-})
-Then you can filter for that in the response$
- function main(responses) {
-  var response$ = responses.HTTP
-    .filter(res$ => res$.request.name === 'foobar-whatever-name-I-want')
-    .mergeAll()
-
-*/

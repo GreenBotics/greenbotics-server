@@ -21,6 +21,10 @@ export default function makeTingoDbDriver(dbPath){
       })
     }
 
+    function update({collectionName, query, data, options}){
+
+    }
+
     function findOne(collectionName, selectors){
       let obs = new Rx.Subject()
       let collection = _cachedCollections[collectionName]
