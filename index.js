@@ -1,4 +1,5 @@
 import Rx from 'rx'
+const merge = Rx.Observable.merge
 
 import makeHttpServer     from './http-server'
 import makeSocketIoServer from './sio-server'
@@ -18,7 +19,7 @@ import {combineLatestObj} from './utils/obsUtils'
 
 
 function intent(drivers){
-  const {socketIO, http} = drivers
+  const {socketIO, http, db} = drivers
 
   socketIO.get('initialData')
     .forEach(e=>console.log("initialData request",e))
@@ -26,33 +27,44 @@ function intent(drivers){
   const getInitialData$ = socketIO.get('initialData')
     .flatMap( e=>db.find("nodes",{},{toArray:true}) )
 
-  
+  const getFeedsData$   = socketIO.get('getFeedsData')
+    .flatMap( e=>db.find("node0SensorData",{},{toArray:true}) ) 
+    
   return {
     getInitialData$
+    ,getFeedsData$
   }
 }
 
 function model(actions){
   const nodes$ = actions.getInitialData$
-  const feeds$ = undefined
+  const feeds$ = actions.getFeedsData$
 
-  const data$ = combineLatestObj({nodes$})
 
-  return nodes$  
+  return combineLatestObj({nodes$,feeds$})
 }
 
 
 
-function socketIO(state$){
-  const outgoingMessages$ = state$.map( 
-    function(eventData){
-      return {
-        messageType: 'initialData',
-        message: JSON.stringify(eventData)
-      }
-  })
+function socketIO(state$, actions){
+  const initialData$ = actions.getInitialData$
+    .map( 
+      function(eventData){
+        return {
+          messageType: 'initialData',
+          message: JSON.stringify(eventData)
+        }
+    })
 
-  return outgoingMessages$
+  const feeds$ = actions.getFeedsData$
+    .do(e=>console.log("getFeedsData",e))
+    .map(e=>JSON.stringify(e))
+    .map(e=>({messageType:'getFeedsData',message:e}))
+
+  return merge(
+    initialData$
+    ,feeds$
+    )
 }
 
 function requests(drivers, sensorJobTimer$){
@@ -107,15 +119,11 @@ function db(drivers){
       return combineLatestObj({response,request})
     })
     .map(function(e){
-      const data           = e.response.variables
+      const data           = formatData(e.response.variables)
       const collectionName = e.request.name+"SensorData"
       return {collectionName, data}
     })
     /*.mergeAll()
-    .catch(function(e){
-      //console.log("ouch , problem fetching data for node0",e)
-      return Rx.Observable.empty()
-    })
     .pluck("response")
     .pluck("variables")
     .map(formatData)*/
@@ -162,12 +170,12 @@ function main(drivers) {
   const actions = intent(drivers)
   const state$  = model(actions, drivers)
 
-  const sensorJobTimer$ = cronJob('*/10 * * * * *')
+  const sensorJobTimer$ = cronJob('*/10 * * 3 * *')
     .stream
   
   const requests$ = requests(drivers, sensorJobTimer$)
   const db$       = db(drivers)
-  const sIO$      = socketIO(state$)
+  const sIO$      = socketIO(state$,actions)
 
  
   return {
