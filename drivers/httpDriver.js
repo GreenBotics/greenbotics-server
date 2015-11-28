@@ -22,8 +22,8 @@ export function createResponse$(options={responseType:"text",method:"get"}){
   }
 
   function handleError(e){
-    console.log("error",xmlhttp.statusText)
-    obs.onError(e)
+    console.log("error in httpDriver",xmlhttp.statusText)
+    obs.onError(xmlhttp.statusText)
   }
 
   xmlhttp.addEventListener("progress", handleProgress)

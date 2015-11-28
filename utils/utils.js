@@ -1,8 +1,6 @@
 let XMLHttpRequest = require("xhr2").XMLHttpRequest
 import Rx from 'rx'
 
-
-
 //wrapper around CronJob
 //TODO : how to deal with start/stop
 const CronJob = require('cron').CronJob
