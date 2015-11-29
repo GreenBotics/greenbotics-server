@@ -18,7 +18,7 @@ export default function makeTingoDbDriver(dbPath){
         _cachedCollections[collectionName] = collection
       }
       collection.insert(data , function(err, result) {
-        console.log("insert",data, err,result)
+        //console.log("insert",data, err,result)
       })
     }
 
@@ -47,14 +47,28 @@ export default function makeTingoDbDriver(dbPath){
       return obs
     }
 
-    function find(collectionName, selectors, options){
+    function find(collectionName, ...args){ //selectors,  options){
+      let argc = args.length
+      let options = {}
+      let selectors = []
+
+      if (argc > 0) {
+        options = args[argc-1] //last arg is options
+      }
+      if(argc > 1){
+        selectors = args.slice(0,argc-1)//all the rest is what we want to use to find data : selectors, mappers etc
+        //console.log("selectors",args.slice(0,argc-2))
+      }
+
+      //console.log("args",args,"len",argc, "options",options,"selectors",selectors)
+
       let obs = new Rx.Subject()
       let collection = _cachedCollections[collectionName]
       if(!collection){
         collection = db.collection(collectionName)
         //obs.onError(`collection ${collectionName} not found`)
       }
-      collection.find(selectors, function(err, item) {
+      collection.find(...selectors, function(err, item) {
         //console.log("finding stuff",err,item, options)
         if(item){
           if(options.toArray){
