@@ -6,24 +6,24 @@ export function remapData(nodeId, data){
   let mapping = {}
   if(nodeId===0){
     mapping = {
-      "temperature":0
-      ,"humidity":1
-      ,"pressure":2
-      ,"windSpd":3
-      ,"windDir":4
-      ,"rain":5
-      ,"visL":6
-      ,"UVL":7
-      ,"irL":8
+      "temperature":'EklkizENg'
+      ,"humidity":'VJggksfNEl'
+      ,"pressure":'NJ-eyifVEe'
+      ,"windSpd":'4Jzx1iMN4l'
+      ,"windDir":'Nk7lJsGV4e'
+      ,"rain":'EJVxJof4Ne'
+      ,"visL":'EJHekjfNNe'
+      ,"UVL":'V1IeyiGN4x'
+      ,"irL":'41vgJoz4Ve'
     }
 
 
   }else if(nodeId ===1){
 
      mapping = {
-      "temperature":0
-      ,"humidity":1
-      ,"pressure":2
+      "temperature":'EyOxJsGVVg'
+      ,"humidity":'VyFxJiz4Ee'
+      ,"pressure":'EJ5lJjfNEl'
     }
   }
 

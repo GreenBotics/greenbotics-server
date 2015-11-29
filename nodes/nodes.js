@@ -14,12 +14,13 @@ export function registerNode(params){
 export function registerSensor(params){
   const defaults = {
     type:undefined
-    id:shortid.generate()
+    ,id:shortid.generate()//we use unique ids instead of integers so we don't have to deal with bloody 
+    //"namespacing" , be able to move sensors etc
   }
   
 }
 
-const nodes = [
+export const nodes = [
     { uid:"1b49763e-8aad-4c2b-8326-46b7548c232b"
       ,_id:0
       ,name:"Weather station"
