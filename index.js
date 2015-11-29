@@ -5,7 +5,6 @@ import makeHttpServer     from './http-server'
 import makeSocketIoServer from './sio-server'
 import Cycle from '@cycle/core'
 
-
 let httpServer = makeHttpServer()
 //let sioServer  = makeSocketIoServer(httpServer)
 
@@ -14,93 +13,43 @@ import makeTingoDbDriver  from './drivers/tingoDBStorage'
 import makeHttpDriver     from './drivers/httpDriver'
 
 import {get,cronJob} from './utils/utils'
-import {formatData,remapData} from './utils/sensorUtils'
 import {combineLatestObj} from './utils/obsUtils'
 
-
-const nodes = [
-    { uid:"1b49763e-8aad-4c2b-8326-46b7548c232b"
-      ,_id:0
-      ,name:"Weather station"
-      ,uri:"http://192.168.1.20:3020"
-      ,sensors:[
-         {id:0, type:"temperature"}
-        ,{id:1, type:"humidity" }
-        ,{id:2, type:"pressure" }
-        ,{id:3, type:"windSpd" }
-        ,{id:4, type:"windDir" }
-        ,{id:5, type:"rain" }
-        ,{id:6, type:"light" }
-        ,{id:7, type:"UV" }
-        ,{id:8, type:"IR" }
-      ]
-    }
-
-  ,{
-      uid:"e53b703b-84a2-40f1-8717-5fda64e588d0"
-      ,id:1
-      ,name:"indoor station"
-      ,uri:"http://192.168.1.21:3020"
-      ,sensors:[
-        {id:0, type:"temperature"}
-        ,{id:1, type:"humidity"}
-        ,{id:2, type:"pressure" }
-      ]
-    }
-  ]
-
+import {formatData,remapData} from './nodes/sensorUtils'
+import {getFeedsData} from './nodes/feeds'
+import {nodes} from './nodes/nodes'
 
 
 function intent(drivers){
   const {socketIO, http, db} = drivers
 
-  socketIO.get('initialData')
-    .forEach(e=>console.log("initialData request"))
-
   const getInitialData$ = socketIO.get('initialData')
+    .do(e=>console.log("intent: initialData"))
     .flatMap( e=>db.find("nodes",{},{toArray:true}) )
 
   const getFeedsData$   = socketIO.get('getFeedsData')
-    .do(e=>console.log("getFeedsData",e))
-    .map(function(searchCriteria){
-      /* [ { node: 2, feed: 2 },
-        { node: 2, feed: 1 },
-        { node: 2, feed: 0 } ]*/
+    .filter(criteria=>criteria.length>0)
+    .do(e=>console.log("intent: getFeedsData",e))
 
-        db.find("nodes",{feedId:4,_id:2},{toArray:true}).forEach(e=>console.log("found nodes",e))
-        db.find("nodes",{feedId:{$all:[4]}},{toArray:true}).forEach(e=>console.log("found nodes2",e))
+  const registerNode$ = socketIO.get('registerNode')
+    .do(e=>console.log("intent: registerNode")
 
-
-        const crit = {$in:[2,3]}//[2,3]
-        const _id = {_id:crit}
-
-        db.find("nodes",_id,{toArray:true}).forEach(e=>console.log("found nodes3",e))
-        //hack for now 
-        /*searchCriteria.map(function(criteria){
-          let collectionName = undefined
-          if(criteria.node === 2){
-            collectionName = "node0SensorData"
-          }else if(criteria.node === 3){
-            collectionName = "node1SensorData"
-          }
-
-          e=>db.find(collectionName,{},{toArray:true})
-
-        })*/
-
-    })
-    .flatMap( e=>db.find("node0SensorData",{},{toArray:true}) ) 
+  const registerFeed$ = socketIO.get('registerFeed')
+    .do(e=>console.log("intent: registerFeed")
     
   return {
     getInitialData$
     ,getFeedsData$
+    ,registerNode$
+    ,registerFeed$
   }
 }
 
-function model(actions){
+function model(actions, drivers){
   const nodes$ = actions.getInitialData$
   const feeds$ = actions.getFeedsData$
-
+    .flatMap(getFeedsData.bind(null,drivers))
+    .do(e=>console.log("feedData OUT",e))
 
   return combineLatestObj({nodes$,feeds$})
 }
@@ -116,10 +65,12 @@ function socketIO(state$, actions){
         }
     })
 
-  const feeds$ = actions.getFeedsData$
-    //.do(e=>console.log("getFeedsData",e))
+  const feeds$ = state$
+    .pluck("feeds")
+    .distinctUntilChanged()
     .map(e=>JSON.stringify(e))
     .map(e=>({messageType:'getFeedsData',message:e}))
+    /*actions.getFeedsData$*/
 
   return merge(
     initialData$
@@ -130,7 +81,7 @@ function socketIO(state$, actions){
 function requests(drivers, sensorJobTimer$){
   //outbound requests
   const node0Reqs$ = sensorJobTimer$
-    .do(e=>console.log("fetch node0 sensor data"))
+    //.do(e=>console.log("fetch node0 sensor data"))
     .map(e=> ({
           url: "http://192.168.1.20:3020"
           , method: 'get'
@@ -141,7 +92,7 @@ function requests(drivers, sensorJobTimer$){
     )
 
   const node1Reqs$ = sensorJobTimer$
-    .do(e=>console.log("fetch node1 sensor data"))
+    //.do(e=>console.log("fetch node1 sensor data"))
     .map(e=> ({
           url: "http://192.168.1.21:3020"
           , method: 'get'
@@ -151,19 +102,16 @@ function requests(drivers, sensorJobTimer$){
         })
     )
 
-  function fetchSensorFeeds(nodes){
-    return nodes
-      .map(function(node){
-
-      })
-  }
-
   //const requests$ = sensorJobTimer$.flatMap
   const requests$ = merge(node0Reqs$,node1Reqs$)
   return requests$
 }
 
 function db(drivers){
+  //db
+  /*db.find("node1SensorData",{}).forEach(e=>console.log("found",e))
+  db.find("node1SensorData",{temperature: { $gt: 21.82 } },{toArray:true})
+    .forEach(e=>console.log("found",e))*/
   const {http} = drivers
 
   const sensorFeedsData$ = http
@@ -184,15 +132,11 @@ function db(drivers){
       const collectionName = e.request.name+"SensorData"
       return {collectionName, data}
     })
-
-  //return Rx.Observable.just({collectionName:"nodes",data:nodes})
+  //actions
+  //  .registerNode()
+  //return Rx.Observable.just({collectionName:"nodes",data:nodes}).do(e=>console.log("please save nodes",e))
   return sensorFeedsData$
 }
-
-  //db
-  /*db.find("node1SensorData",{}).forEach(e=>console.log("found",e))
-  db.find("node1SensorData",{temperature: { $gt: 21.82 } },{toArray:true})
-    .forEach(e=>console.log("found",e))*/
 
   
 
