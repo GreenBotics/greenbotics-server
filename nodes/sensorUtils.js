@@ -51,8 +51,8 @@ export function addNodeData(nodeData, data){
   return assign({},data,nodeData)
 }
 
+
 export function logData(collection, data){
-  //console.log("logging",data)
   collection.insert(data,function(err,result){
     console.log("saved data",err,result)//,data,err,result)
   })

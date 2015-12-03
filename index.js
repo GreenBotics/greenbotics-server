@@ -1,5 +1,6 @@
 import Rx from 'rx'
 const merge = Rx.Observable.merge
+const of    = Rx.Observable.of
 
 import makeHttpServer     from './http-server'
 import makeSocketIoServer from './sio-server'
@@ -20,6 +21,15 @@ import {getFeedsData} from './nodes/feeds'
 import {nodes} from './nodes/nodes'
 
 
+console.log("here in server")
+let obs = new Rx.Subject()
+obs.onNext(e=>console.log("obs test"))
+
+obs.onError("error")
+obs.onNext("foo")
+obs.onCompleted()
+
+
 function intent(drivers){
   const {socketIO, http, db} = drivers
 
@@ -32,10 +42,10 @@ function intent(drivers){
     .do(e=>console.log("intent: getFeedsData",e))
 
   const registerNode$ = socketIO.get('registerNode')
-    .do(e=>console.log("intent: registerNode")
+    .do(e=>console.log("intent: registerNode"))
 
   const registerFeed$ = socketIO.get('registerFeed')
-    .do(e=>console.log("intent: registerFeed")
+    .do(e=>console.log("intent: registerFeed"))
     
   return {
     getInitialData$
@@ -45,14 +55,20 @@ function intent(drivers){
   }
 }
 
+
 function model(actions, drivers){
   const nodes$ = actions.getInitialData$
   const feeds$ = actions.getFeedsData$
     .flatMap(getFeedsData.bind(null,drivers))
-    .do(e=>console.log("feedData OUT",e))
+
+  /*actions.registerNode$
+    .map 
+  actions.registerFeed$
+    .map */
 
   return combineLatestObj({nodes$,feeds$})
 }
+
 
 
 function socketIO(state$, actions){
@@ -116,29 +132,29 @@ function db(drivers){
 
   const sensorFeedsData$ = http
     .filter(res$ => res$.request.type === 'feedData')
-    //.retry(3)
-    .catch(function(e){
-      console.log("ouch , problem fetching data for node1, really",e)
-      return Rx.Observable.empty()
+    .flatMap(data => {
+      const response$ = data.catch(e=>{
+        console.log("caught error in fetching sensor data",e)
+        return Rx.Observable.empty()
+      })
+      const request  = of(data.request)
+      const response = response$.pluck("response")
+      return combineLatestObj({response,request})//.materialize()//FIXME: still do not get this one
     })
-    .flatMap(function(e){
-      const request  = Rx.Observable.just(e.request)
-      const response = e.pluck("response")
-      return combineLatestObj({response,request})
-    })
-    .map(function(e){
-      const nodeId = parseInt(e.request.name.replace("node",""))
-      const data           = remapData(nodeId, formatData(e.response.variables))
-      const collectionName = e.request.name+"SensorData"
+    .filter(reqRes => (reqRes.response.variables !== undefined) )
+    .map(function(reqRes){
+      const nodeId = parseInt(reqRes.request.name.replace("node",""))
+      const data           = remapData(nodeId, formatData(reqRes.response.variables))
+      const collectionName = reqRes.request.name+"SensorData"
+
       return {collectionName, data}
     })
+
   //actions
   //  .registerNode()
   //return Rx.Observable.just({collectionName:"nodes",data:nodes}).do(e=>console.log("please save nodes",e))
   return sensorFeedsData$
 }
-
-  
 
 function main(drivers) {  
   const actions = intent(drivers)
