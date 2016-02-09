@@ -10,8 +10,8 @@ let httpServer = makeHttpServer()
 //let sioServer  = makeSocketIoServer(httpServer)
 
 import makeSocketIODriver from './drivers/socketIODriver'
-import makeTingoDbDriver  from './drivers/tingoDBStorage'
-import makeHttpDriver     from './drivers/httpDriver'
+import makeTingoDbDriver  from 'cycle-tingodb'
+import makeHttpDriver     from 'cycle-simple-http'
 
 import {get,cronJob} from './utils/utils'
 import {combineLatestObj} from './utils/obsUtils'
@@ -19,15 +19,6 @@ import {combineLatestObj} from './utils/obsUtils'
 import {formatData,remapData} from './nodes/sensorUtils'
 import {getFeedsData} from './nodes/feeds'
 import {nodes} from './nodes/nodes'
-
-
-console.log("here in server")
-let obs = new Rx.Subject()
-obs.onNext(e=>console.log("obs test"))
-
-obs.onError("error")
-obs.onNext("foo")
-obs.onCompleted()
 
 
 function intent(drivers){
