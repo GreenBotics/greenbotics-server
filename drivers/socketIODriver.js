@@ -22,7 +22,7 @@ export default function makeSocketIODriver (app){
     //connection$.forEach(socket=>console.log("sockets",socket))
 
     function publish({socket, messageType, message}) {
-      console.log("publish to",socket.id,messageType,message)
+      //console.log("publish to",socket.id,messageType,message)
       socket.emit(messageType, message);
     }
 

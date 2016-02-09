@@ -25,6 +25,7 @@ export const nodes = [
       ,_id:0
       ,name:"Weather station"
       ,uri:"http://192.168.1.20:3020"
+      ,online:false
       ,sensors:[
          {id:'EklkizENg', type:"temperature"}
         ,{id:'VJggksfNEl', type:"humidity" }
@@ -43,6 +44,7 @@ export const nodes = [
       ,id:1
       ,name:"indoor station"
       ,uri:"http://192.168.1.21:3020"
+      ,online:false
       ,sensors:[
         {id:'EyOxJsGVVg' , type:"temperature"}
         ,{id:'VyFxJiz4Ee', type:"humidity"}
