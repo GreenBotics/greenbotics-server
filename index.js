@@ -1,6 +1,6 @@
 import Rx from 'rx'
-const merge = Rx.Observable.merge
-const of    = Rx.Observable.of
+const {merge,of} = Rx.Observable
+import path from 'path'
 
 import makeHttpServer     from './http-server'
 import makeSocketIoServer from './sio-server'
@@ -11,58 +11,40 @@ let httpServer = makeHttpServer()
 
 import makeSocketIODriver from './drivers/socketIODriver'
 import makeTingoDbDriver  from 'cycle-tingodb'
-import makeHttpDriver     from 'cycle-simple-http'
+import makeHttpDriver     from 'cycle-simple-http-driver'
+import makeMqttDriver     from 'cycle-mqtt-driver'
 
 import {get,cronJob} from './utils/utils'
-import {combineLatestObj} from './utils/obsUtils'
+import {combineLatestObj, actionsFromSources} from './utils/obsUtils'
 
 import {formatData,remapData} from './nodes/sensorUtils'
 import {getFeedsData} from './nodes/feeds'
 import {nodes} from './nodes/nodes'
 
+import {db} from './db'
+ 
+function cronDriver(){
+  
 
-function intent(drivers){
-  const {socketIO, http, db} = drivers
-
-  const getInitialData$ = socketIO.get('initialData')
-    .do(e=>console.log("intent: initialData"))
-    .flatMap( e=>db.find("nodes",{},{toArray:true}) )
-
-  const getFeedsData$   = socketIO.get('getFeedsData')
-    .filter(criteria=>criteria.length>0)
-    .do(e=>console.log("intent: getFeedsData",e))
-
-  const registerNode$ = socketIO.get('registerNode')
-    .do(e=>console.log("intent: registerNode"))
-
-  const registerFeed$ = socketIO.get('registerFeed')
-    .do(e=>console.log("intent: registerFeed"))
-    
-  return {
-    getInitialData$
-    ,getFeedsData$
-    ,registerNode$
-    ,registerFeed$
+  function get(crontab){
+    //TODO: cache
+    const timer$ = cronJob(crontab)
+      .stream
+    return timer$
   }
+  return {get}
 }
 
-
-function model(actions, drivers){
+function model(actions, sources){
   const nodes$ = actions.getInitialData$
   const feeds$ = actions.getFeedsData$
-    .flatMap(getFeedsData.bind(null,drivers))
+    .flatMap(getFeedsData.bind(null,sources))
 
-  /*actions.registerNode$
-    .map 
-  actions.registerFeed$
-    .map */
 
   return combineLatestObj({nodes$,feeds$})
 }
 
-
-
-function socketIO(state$, actions){
+function socketIORequests(state$, actions){
   const initialData$ = actions.getInitialData$
     .map( 
       function(eventData){
@@ -85,7 +67,11 @@ function socketIO(state$, actions){
     )
 }
 
-function requests(drivers, sensorJobTimer$){
+function httpRequests(sources){
+
+  const sensorJobTimer$ = sources.cron.get('*/10 * * * * *')
+    .tap(e=>console.log("sensorJobTimer",e))
+
   //outbound requests
   const node0Reqs$ = sensorJobTimer$
     //.do(e=>console.log("fetch node0 sensor data"))
@@ -114,55 +100,28 @@ function requests(drivers, sensorJobTimer$){
   return requests$
 }
 
-function db(drivers){
-  //db
-  /*db.find("node1SensorData",{}).forEach(e=>console.log("found",e))
-  db.find("node1SensorData",{temperature: { $gt: 21.82 } },{toArray:true})
-    .forEach(e=>console.log("found",e))*/
-  const {http} = drivers
 
-  const sensorFeedsData$ = http
-    .filter(res$ => res$.request.type === 'feedData')
-    .flatMap(data => {
-      const response$ = data.catch(e=>{
-        console.log("caught error in fetching sensor data",e)
-        return Rx.Observable.empty()
-      })
-      const request  = of(data.request)
-      const response = response$.pluck("response")
-      return combineLatestObj({response,request})//.materialize()//FIXME: still do not get this one
-    })
-    .filter(reqRes => (reqRes.response.variables !== undefined) )
-    .map(function(reqRes){
-      const nodeId = parseInt(reqRes.request.name.replace("node",""))
-      const data           = remapData(nodeId, formatData(reqRes.response.variables))
-      const collectionName = reqRes.request.name+"SensorData"
 
-      return {collectionName, data}
-    })
+function main(sources) { 
+  const actions = actionsFromSources(sources, path.resolve(__dirname,'./actions')+'/' )
+  const state$  = model(actions, sources)
 
-  //actions
-  //  .registerNode()
-  //return Rx.Observable.just({collectionName:"nodes",data:nodes}).do(e=>console.log("please save nodes",e))
-  return sensorFeedsData$
-}
-
-function main(drivers) {  
-  const actions = intent(drivers)
-  const state$  = model(actions, drivers)
+  console.log("actions",actions)
 
   const sensorJobTimer$ = cronJob('*/10 * * * * *')
     .stream
   
-  const requests$ = requests(drivers, sensorJobTimer$)
-  const db$       = db(drivers)
-  const sIO$      = socketIO(state$,actions)
+  const http$     = httpRequests(sources)
+  const sIO$      = socketIORequests(state$, actions)
+  const db$       = db(sources)
+  const mqtt$     = Rx.Observable.never()
 
- 
+
   return {
     socketIO: sIO$
-    ,db: db$
-    ,http:requests$
+    ,http   : http$
+    ,mqtt   : mqtt$
+    ,db     : db$
   }
 }
 
@@ -172,6 +131,8 @@ let drivers = {
   socketIO  : makeSocketIODriver(httpServer)
   , db      : makeTingoDbDriver("dbTest")
   , http    : makeHttpDriver()
+  , mqtt    : makeMqttDriver( {host:'localhost', port:1981} )
+  , cron    : cronDriver
 }
 
 Cycle.run(main, drivers)
