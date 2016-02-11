@@ -2,7 +2,7 @@ import sio from 'socket.io'
 import Rx from 'rx'
 const fromEvent = Rx.Observable.fromEvent
 
-
+//this is a "server driver"
 export default function makeSocketIODriver (app){
   let io = sio(app)
 
@@ -26,17 +26,17 @@ export default function makeSocketIODriver (app){
       socket.emit(messageType, message);
     }
 
+    function get(eventName){
+      return connections$
+        .flatMap(socket=>fromEvent(socket, eventName))
+    }
+
     outgoing$
       .withLatestFrom(connections$,function(outgoing,socket){
         const {messageType,message} = outgoing
         return {socket, messageType, message}
       })
       .forEach(publish)
-
-    function get(eventName){
-      return connections$
-        .flatMap(socket=>fromEvent(socket, eventName))
-    }
 
     /*var _emit = socket.emit
     _onevent = socket.onevent
