@@ -5,9 +5,6 @@ import {combineLatestObj} from './utils/obsUtils'
 
 export function db(sources){
   //db
-  /*db.find("node1SensorData",{}).forEach(e=>console.log("found",e))
-  db.find("node1SensorData",{temperature: { $gt: 21.82 } },{toArray:true})
-    .forEach(e=>console.log("found",e))*/
   const {http} = sources
 
   const sensorFeedsData$ = http
@@ -31,7 +28,10 @@ export function db(sources){
     })
 
   //actions
-  //  .registerNode()
-  //return Rx.Observable.just({collectionName:"nodes",data:nodes}).do(e=>console.log("please save nodes",e))
+  /* //test stuff
+  return Rx.Observable.just({collectionName:"nodes",data:nodes}).do(e=>console.log("please save nodes",e))
+  db.find("node1SensorData",{}).forEach(e=>console.log("found",e))
+  db.find("node1SensorData",{temperature: { $gt: 21.82 } },{toArray:true})
+    .forEach(e=>console.log("found",e))*/
   return sensorFeedsData$
 }
