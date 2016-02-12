@@ -13,8 +13,9 @@ import makeSocketIODriver from './drivers/socketIODriver'
 import makeTingoDbDriver  from 'cycle-tingodb'
 import makeHttpDriver     from 'cycle-simple-http-driver'
 import makeMqttDriver     from 'cycle-mqtt-driver'
+import cronDriver         from './drivers/cronDriver'
 
-import {get,cronJob} from './utils/utils'
+import {get} from './utils/utils'
 import {combineLatestObj, actionsFromSources} from './utils/obsUtils'
 
 import {formatData,remapData} from './nodes/sensorUtils'
@@ -23,17 +24,6 @@ import {nodes} from './nodes/nodes'
 
 import {db} from './db'
  
-function cronDriver(){
-  
-
-  function get(crontab){
-    //TODO: cache
-    const timer$ = cronJob(crontab)
-      .stream
-    return timer$
-  }
-  return {get}
-}
 
 function model(actions, sources){
   const nodes$ = actions.getInitialData$
@@ -96,7 +86,7 @@ function httpRequests(sources){
     )
 
   //const requests$ = sensorJobTimer$.flatMap
-  const requests$ = merge(node0Reqs$,node1Reqs$)
+  const requests$ = Rx.Observable.never()//merge(node0Reqs$,node1Reqs$)
   return requests$
 }
 
@@ -106,10 +96,7 @@ function main(sources) {
   const actions = actionsFromSources(sources, path.resolve(__dirname,'./actions')+'/' )
   const state$  = model(actions, sources)
 
-  console.log("actions",actions)
-
-  const sensorJobTimer$ = cronJob('*/10 * * * * *')
-    .stream
+  //console.log("actions",actions)
   
   const http$     = httpRequests(sources)
   const sIO$      = socketIORequests(state$, actions)
