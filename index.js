@@ -10,7 +10,7 @@ let httpServer = makeHttpServer()
 //let sioServer  = makeSocketIoServer(httpServer)
 
 import makeSocketIODriver from './drivers/socketIODriver'
-import makeTingoDbDriver  from 'cycle-tingodb'
+import makeTingoDbDriver  from 'cycle-tingodb-driver'
 import makeHttpDriver     from 'cycle-simple-http-driver'
 import makeMqttDriver     from 'cycle-mqtt-driver'
 import cronDriver         from './drivers/cronDriver'
@@ -30,6 +30,8 @@ function model(actions, sources){
   const feeds$ = actions.getFeedsData$
     .flatMap(getFeedsData.bind(null,sources))
 
+  const feedData$ = actions.updateFeedsData$
+  
 
   return combineLatestObj({nodes$,feeds$})
 }
@@ -104,6 +106,19 @@ function main(sources) {
   const mqtt$     = Rx.Observable.never()
 
 
+  //sources.db.forEach(e=>console.log("db as source",e))
+
+  sources.mqtt.get('sensorData').forEach(e=>console.log("sensorData",e.toString() ))
+  sources.mqtt.get('/greenbotics/foo/0/temperature').forEach(e=>console.log("temperature",e.toString() ))
+  sources.mqtt.get('/greenbotics/foo/0/baro').forEach(e=>console.log("baro",e.toString() ))
+  sources.mqtt.get('/greenbotics/foo/0/humidity').forEach(e=>console.log("humidity",e.toString() ))
+
+  sources.mqtt.get('/greenbotics/foo/#').forEach(e=>console.log("all sensors",e.toString() ))
+
+  
+  //sources.mqtt.get('nodeOnline').forEach(e=>console.log("nodeOnline",e.toString() ))
+
+
   return {
     socketIO: sIO$
     ,http   : http$
@@ -118,7 +133,7 @@ let drivers = {
   socketIO  : makeSocketIODriver(httpServer)
   , db      : makeTingoDbDriver("dbTest")
   , http    : makeHttpDriver()
-  , mqtt    : makeMqttDriver( {host:'localhost', port:1981} )
+  , mqtt    : makeMqttDriver( {host:'localhost', port:1883} )
   , cron    : cronDriver
 }
 

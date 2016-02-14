@@ -5,9 +5,53 @@ import {combineLatestObj} from './utils/obsUtils'
 
 export function db(sources){
   //db
-  const {http} = sources
+  const {http, db} = sources
+  
+  const sensorFeedsData$ = new Rx.Subject()
 
-  const sensorFeedsData$ = http
+
+  db
+    .filter(res$ => res$.query.method === 'find' && res$.query.id===45 )
+    .flatMap(data => {
+      const response$ = data.catch(e=>{
+        console.log("caught error in fetching data",e)
+        return Rx.Observable.empty()
+      })
+      const query    = of(data.query)
+      const response = response$
+      return  combineLatestObj({response,query})//.materialize()//FIXME: still do not get this one
+    })
+    //.mergeAll()
+    .forEach(e=>console.log("db GET",e))
+
+  
+  
+
+  const collectionName = 'test'+"SensorData"
+
+  setInterval(function(){
+
+    const data           = {name:'foo',bar:'baz'}//remapData(nodeId, formatData(reqRes.response.variables))
+    const data2           = {name:'bar',count:45}//remapData(nodeId, formatData(reqRes.response.variables))
+
+    sensorFeedsData$.onNext(  {method:'insert', collectionName, data} )
+    sensorFeedsData$.onNext(  {method:'insert', collectionName, data:data2} )
+
+  },10000)
+
+  setInterval(function(){
+      const projection = {}
+      sensorFeedsData$.onNext(  {method:'find', id:'joofaz', collectionName, query:{}, projection, options:{toArray:true} } )
+      sensorFeedsData$.onNext(  {method:'find', id:45, collectionName, query:{name:'foo'}, projection, options:{toArray:true} } )
+  }, 15000)
+
+
+  setInterval(function(){
+    sensorFeedsData$.onNext(  {method:'delete', collectionName, query:{} } )
+  }, 30000)
+
+
+  /*const sensorFeedsData$ = http
     .filter(res$ => res$.request.type === 'feedData')
     .flatMap(data => {
       const response$ = data.catch(e=>{
@@ -24,8 +68,8 @@ export function db(sources){
       const data           = remapData(nodeId, formatData(reqRes.response.variables))
       const collectionName = reqRes.request.name+"SensorData"
 
-      return {collectionName, data}
-    })
+      return {method:'insert', collectionName, data}
+    })*/
 
   //actions
   /* //test stuff
@@ -33,5 +77,5 @@ export function db(sources){
   db.find("node1SensorData",{}).forEach(e=>console.log("found",e))
   db.find("node1SensorData",{temperature: { $gt: 21.82 } },{toArray:true})
     .forEach(e=>console.log("found",e))*/
-  return sensorFeedsData$
+  return sensorFeedsData$//.tap(e=>console.log("sensorFeedsData",e))
 }
