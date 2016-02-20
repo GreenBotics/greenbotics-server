@@ -13,7 +13,7 @@ function dbExperiments(){
 }
 
 
-function extractFeedsData(drivers,searchCriteria,limit){
+function extractFeedsData(drivers, searchCriteria, limit){
   const {db} = drivers
 
   let feedFields = searchCriteria.reduce(function(acc,criteria){
