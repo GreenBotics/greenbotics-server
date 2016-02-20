@@ -1,5 +1,5 @@
 
-
+//Exposes actions coming from from mqtt 
 export function intent({mqtt}){
 
   const registerNode$ = mqtt.get('registerNode')
