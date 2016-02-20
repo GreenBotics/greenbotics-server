@@ -1,4 +1,3 @@
-let XMLHttpRequest = require("xhr2").XMLHttpRequest
 import Rx from 'rx'
 
 //wrapper around CronJob
@@ -29,9 +28,6 @@ export function cronJob(cronTime){
     ,stream: obs
   }
 }
-
-
-
 
 
 //TODO: taken from three.js ,do correct attribution

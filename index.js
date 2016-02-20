@@ -36,7 +36,7 @@ function model(actions, sources){
   return combineLatestObj({nodes$,feeds$})
 }
 
-function socketIORequests(state$, actions){
+function socketIORequests({state$, actions, sources}){
   const initialData$ = actions.getInitialData$
     .map( 
       function(eventData){
@@ -59,7 +59,7 @@ function socketIORequests(state$, actions){
     )
 }
 
-function httpRequests(sources){
+function httpRequests({sources}){
 
   const sensorJobTimer$ = sources.cron.get('*/10 * * * * *')
     .tap(e=>console.log("sensorJobTimer",e))
@@ -100,11 +100,10 @@ function main(sources) {
 
   //console.log("actions",actions)
   
-  const http$     = httpRequests(sources)
-  const sIO$      = socketIORequests(state$, actions)
-  const db$       = db(sources, actions)
+  const http$     = httpRequests({sources})
+  const sIO$      = socketIORequests({state$, actions})
+  const db$       = db({sources, actions})
   const mqtt$     = Rx.Observable.never()
-
 
   //sources.db.forEach(e=>console.log("db as source",e))
 
@@ -115,9 +114,7 @@ function main(sources) {
 
   sources.mqtt.get('/greenbotics/foo/#').forEach(e=>console.log("all sensors",e.toString() ))
 
-  
   //sources.mqtt.get('nodeOnline').forEach(e=>console.log("nodeOnline",e.toString() ))
-
 
   return {
     socketIO: sIO$

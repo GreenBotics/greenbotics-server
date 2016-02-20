@@ -5,7 +5,7 @@ import {omit} from 'ramda'
 import assign from 'fast.js/object/assign'//faster object.assign
 
 
-export function db(sources, actions){
+export function db({sources, actions}){
   //db
   const {http, db, mqtt} = sources
   
