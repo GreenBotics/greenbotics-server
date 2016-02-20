@@ -1,16 +1,30 @@
 import Rx from 'rx'
-const {merge, of} = Rx.Observable
+const  {merge, of} = Rx.Observable
 import {combineLatestObj} from './utils/obsUtils'
+import {omit} from 'ramda'
+import assign from 'fast.js/object/assign'//faster object.assign
 
 
-export function db(sources){
+export function db(sources, actions){
   //db
-  const {http, db} = sources
+  const {http, db, mqtt} = sources
   
-  const sensorFeedsData$ = new Rx.Subject()
+  //const sensorFeedsData$ = new Rx.Subject()
+
+  const sensorFeedsData$ = actions.updateFeedsData$
+    .map(d=>JSON.parse( d.toString() ))
+    .map(function(data){
+      const nodeId = parseInt(data.nodeId)
+      const sensorData     = assign({}, omit(['nodeId'], data), {timestamp:Date.now()} ) //remapData(nodeId, formatData(reqRes.response.variables))
+
+      const collectionName = `node_${nodeId}_sensorData` 
+      return {method:'insert', collectionName, data:sensorData}
+    })
+    .tap(e=>console.log("updateFeedsData",e))
+    //.forEach(e=>e)
 
 
-  db
+  /*db
     .filter(res$ => res$.query.method === 'find' && res$.query.id===45 )
     .flatMap(data => {
       const response$ = data.catch(e=>{
@@ -48,7 +62,8 @@ export function db(sources){
 
   setInterval(function(){
     sensorFeedsData$.onNext(  {method:'delete', collectionName, query:{} } )
-  }, 30000)
+  }, 30000)*/
+
 
 
   /*const sensorFeedsData$ = http

@@ -102,7 +102,7 @@ function main(sources) {
   
   const http$     = httpRequests(sources)
   const sIO$      = socketIORequests(state$, actions)
-  const db$       = db(sources)
+  const db$       = db(sources, actions)
   const mqtt$     = Rx.Observable.never()
 
 
