@@ -1,11 +1,10 @@
 
-//Exposes actions coming from from socket IO 
+//Exposes actions coming from from socket IO
 export function intent({socketIO}){
 
   const getInitialData$ = socketIO.get('initialData')
     .do(e=>console.log("intent: initialData"))
-    .flatMap( e=>db.find("nodes",{},{toArray:true}) )
-
+    
   const getFeedsData$   = socketIO.get('getFeedsData')
     .filter(criteria=>criteria.length>0)
     .do(e=>console.log("intent: getFeedsData",e))
@@ -15,7 +14,7 @@ export function intent({socketIO}){
 
   const registerFeed$ = socketIO.get('registerFeed')
     .do(e=>console.log("intent: registerFeed"))
-    
+
   return {
     getInitialData$
     ,getFeedsData$
