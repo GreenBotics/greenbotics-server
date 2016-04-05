@@ -10,13 +10,9 @@ export function intent ({socketIO}) {
   const registerNode$ = socketIO.get('registerNode')
     .do(e => console.log('intent: registerNode'))
 
-  const registerFeed$ = socketIO.get('registerFeed')
-    .do(e => console.log('intent: registerFeed'))
-
   return {
     getInitialData$,
     getFeedsData$,
-    registerNode$,
-    registerFeed$
+    registerNode$
   }
 }

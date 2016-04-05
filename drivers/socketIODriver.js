@@ -10,20 +10,15 @@ export default function makeSocketIODriver (app){
     let connections$ = fromEvent(  io.sockets, 'connection' )
     connections$.forEach(socket=>console.log("connection made to socket by",socket.id))
 
-    /*let someEvent$ = connection$
-      .flatMap(socket=>fromEvent('someEvent',socket))
-
-    someEvent$
-      .forEach(e=>console.log("someEvent event",e))*/
-
-    //let socketIn$ = connection$ 
-    //connection$.subscribe(e=>socket$.onNext(e))
-    //let socketOut$ = new Rx.Subject()
-    //connection$.forEach(socket=>console.log("sockets",socket))
+    /*Object.keys(sockets).forEach(function (id) {
+ +      var socket = sockets[id]*/
 
     function publish({socket, messageType, message}) {
       //console.log("publish to",socket.id,messageType,message)
-      socket.emit(messageType, message);
+      socket.emit(messageType, message)
+      socket.on('error', function(error) {
+        console.log("error in socket",error)
+      })
     }
 
     function get(eventName){
@@ -37,24 +32,6 @@ export default function makeSocketIODriver (app){
         return {socket, messageType, message}
       })
       .forEach(publish)
-
-    /*var _emit = socket.emit
-    _onevent = socket.onevent
-
-
-    //attempt to override to enable filtering
-    socket.emit = function () { //Override outgoing
-        //Do your logic here
-        console.log('***', 'emit', arguments)
-        _emit.apply(socket, arguments)
-    };
-
-    socket.onevent = function (packet) { //Override incoming
-        var args = packet.data || []
-        //Do your logic here
-        console.log('***', 'onevent', packet)
-        _onevent.call(socket, packet)
-    }*/
 
     return {
       get
