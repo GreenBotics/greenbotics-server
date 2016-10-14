@@ -1,13 +1,17 @@
 import shortid from 'shortid'
 
+function registerNode (state, input) {
+  return ''
+}
+
+function removeNode (state, input) {
+  return ''
+}
+
 /* let sensors = 12
 for(let i=0;i<sensors;i++){
   console.log({id:shortid.generate()})
 }*/
-
-export function registerNode (params) {
-  const defaults = {}
-}
 
 export function registerSensor (params) {
   const defaults = {
